@@ -1,0 +1,20 @@
+/* Shared by several components. Rules used by one component are in its <style scoped> block. */
+body { margin: 0; font-family: system-ui, sans-serif; color: #222; background: #fafafa; }
+h2 { font-size: 1rem; margin: 16px 0 6px; }
+button { cursor: pointer; padding: 8px 14px; border: 1px solid #ccc; border-radius: 6px; background: white; }
+.link { border: none; background: none; color: #2563eb; padding: 2px 6px; }
+.chip { padding: 2px 8px; margin: 2px; font-size: 0.85rem; }
+.muted, small { color: #666; font-size: 0.85rem; }
+.error { color: #b91c1c; }
+.note { background: #fff7e6; padding: 6px 10px; border-radius: 6px; }
+.kind { text-transform: uppercase; font-size: 0.7rem; margin: 0 4px; }
+
+/* Type badges */
+.type { color: white; font-size: 0.7rem; padding: 1px 6px; border: none; border-radius: 4px; margin-right: 4px; text-transform: uppercase; }
+button.type:hover { filter: brightness(0.85); }
+
+/* Page layout: results (or chart) and details side by side; Explore adds a sidebar */
+.columns { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.columns.with-sidebar { grid-template-columns: 200px 1fr 1fr; }
+@media (max-width: 800px) { .columns, .columns.with-sidebar { grid-template-columns: 1fr; } }
+.columns > section, .columns > aside { min-width: 0; } /* let wide tables scroll instead of widening the column */

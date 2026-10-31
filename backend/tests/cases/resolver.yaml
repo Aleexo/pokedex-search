@@ -1,0 +1,65 @@
+# Labelled entity-resolution cases. `expect` is one of:
+#   kind:name           -> this entity is the first match
+#   none                -> nothing resolves
+#   [kind:name, ...]    -> several equally good matches; all listed must be among them
+# Every bug found in manual testing becomes a case here.
+
+exact:
+  - {query: pikachu, expect: "pokemon:pikachu"}
+  - {query: hypno, expect: "pokemon:hypno"}          # trap: hypnosis
+  - {query: growl, expect: "move:growl"}             # trap: growlithe
+  - {query: dig, expect: "move:dig"}                 # trap: diglett
+  - {query: mew, expect: "pokemon:mew"}              # trap: mewtwo
+  - {query: paras, expect: "pokemon:paras"}          # trap: parasect
+  - {query: fly, expect: "move:fly"}                 # trap: flying
+  - {query: swift, expect: "move:swift"}             # trap: swift-swim
+  - {query: fire, expect: "type:fire"}
+  - {query: poison, expect: "type:poison"}
+  - {query: thunder, expect: "move:thunder"}         # not thunder-wave
+  - {query: thunder wave, expect: "move:thunder-wave"}
+
+formatting:
+  - {query: mr mime, expect: "pokemon:mr-mime"}
+  - {query: Mr. Mime, expect: "pokemon:mr-mime"}
+  - {query: nidoran f, expect: "pokemon:nidoran-f"}
+  - {query: SLEEP-POWDER, expect: "move:sleep-powder"}
+
+partial:
+  - {query: mr, expect: "pokemon:mr-mime"}             # 2 letters are enough for a prefix
+  - {query: bulba, expect: "pokemon:bulbasaur"}         # the main example
+  - {query: bulbi, expect: "pokemon:bulbasaur"}
+  - {query: vulpi, expect: "pokemon:vulpix"}
+  - {query: growli, expect: "pokemon:growlithe"}
+  - {query: thunder wa, expect: "move:thunder-wave"}
+  - {query: mime, expect: "pokemon:mr-mime"}           # a later word of the name
+  - {query: wave, expect: "move:thunder-wave"}
+  - {query: team, expect: "move:double-team"}
+  - {query: rain, expect: "ability:rain-dish"}
+  - {query: sleep, expect: "move:sleep-powder"}
+
+typos:
+  - {query: mow, expect: "pokemon:mew"}                # 3 letters, one wrong letter: whole short names only
+  - {query: mwe, expect: "pokemon:mew"}                # 3 letters, two swapped
+  - {query: dgi, expect: "move:dig"}
+  - {query: pikchu, expect: "pokemon:pikachu"}
+  - {query: charmandr, expect: "pokemon:charmander"}
+  - {query: bulbasuar, expect: "pokemon:bulbasaur"}
+  - {query: bulbsa, expect: "pokemon:bulbasaur"}         # partial and misspelt
+  - {query: thunder wabe, expect: "move:thunder-wave"}  # typos in multi-word names too
+  - {query: pichuka, expect: "pokemon:pikachu"}          # same letters, another order
+  - {query: pikahcu, expect: "pokemon:pikachu"}          # two letters swapped
+  - {query: chramander, expect: "pokemon:charmander"}
+  - {query: chramandr, expect: "pokemon:charmander"}           # a swap plus a missing letter (OSA: 2)
+
+several:
+  - {query: jump ki, expect: ["move:jump-kick", "move:high-jump-kick"]}  # a 2-word query from the middle of a 3-word name
+  - {query: psychic, expect: ["type:psychic", "move:psychic"]}
+  - {query: char, expect: ["pokemon:charmander", "pokemon:charmeleon", "pokemon:charizard"]}
+  - {query: nidoran, expect: ["pokemon:nidoran-f", "pokemon:nidoran-m"]}
+  - {query: sand, expect: ["pokemon:sandshrew", "pokemon:sandslash", "ability:sand-veil", "ability:sand-rush", "ability:sand-force", "move:sand-attack"]}  # 6 ties, none dropped
+
+must_be_none:
+  - {query: p, expect: none}                       # 1 letter is too short (45 names start with p)
+  - {query: qwzx, expect: none}
+  - {query: pikachu and raichu, expect: none}       # no single name; the search then reads both (test_engine.py)
+  - {query: the, expect: none}

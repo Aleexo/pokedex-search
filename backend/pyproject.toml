@@ -1,0 +1,32 @@
+[project]
+name = "pokedex-search"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+]
+
+[project.optional-dependencies]
+dev = [
+    "httpx>=0.27",
+    "mypy>=1.13",
+    "pytest>=8",
+    "pyyaml>=6",
+    "types-pyyaml>=6",
+]
+
+[tool.setuptools]
+packages = ["api", "coverage", "domain", "explore", "search"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests", "coverage", "domain", "explore", "search", "api"]
+addopts = "--doctest-modules"  # runs the usage examples in docstrings
+doctest_optionflags = "ELLIPSIS NORMALIZE_WHITESPACE"
+
+[tool.mypy]
+files = ["api", "coverage", "domain", "explore", "search", "tests"]
+python_version = "3.11"
+check_untyped_defs = true  # also check test functions, which have no annotations
+warn_unused_ignores = true
