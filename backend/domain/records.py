@@ -1,11 +1,68 @@
-"""The dataset's records as typed objects: Pokémon, moves, abilities, types.
+"""The dataset's records as typed objects: Pokémon, moves, abilities, types, all `Entity`; their `Kind` and
+identity (`EntityRef`).
 
 `from_json` is the only place that reads the JSON keys; the rest of the code uses attributes, checked by mypy.
 Units are converted on loading: heights in m, weights in kg (the file has decimetres and hectograms).
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
+from typing import ClassVar
+
+
+class Kind(StrEnum):
+    """StrEnum: members compare equal to, and serialise as, their string value (JSON, URLs, YAML).
+
+    >>> Kind("move") is Kind.MOVE
+    True
+    """
+
+    POKEMON = "pokemon"
+    MOVE = "move"
+    ABILITY = "ability"
+    TYPE = "type"
+
+
+@dataclass(frozen=True, order=True)
+class EntityRef:
+    """Identity of an entity: its kind and its number in that kind (move 94 and type 14 are both "psychic"). The
+    name is carried for display only: equality, hashing and order use kind and id.
+
+    >>> repo.ref(Kind.MOVE, "psychic") == repo.ref(Kind.TYPE, "psychic"), repo.ref(Kind.MOVE, "psychic").id
+    (False, 94)
+    """
+
+    kind: Kind
+    """What it is: Pokémon, move, ability or type."""
+    id: int
+    """Its number within its kind: Pokédex number, move or ability number, PokeAPI's type number."""
+    name: str = field(compare=False)
+    """Its dataset name, for display, logs and the API: "thunder-wave", "mr-mime"."""
+
+
+@dataclass(frozen=True)
+class Entity:
+    """What every record has: its kind, number and dataset name. Pokémon, moves, abilities and types inherit it.
+
+    >>> repo.moves["surf"].kind, repo.moves["surf"].ref
+    (<Kind.MOVE: 'move'>, EntityRef(kind=<Kind.MOVE: 'move'>, id=57, name='surf'))
+    """
+
+    kind: ClassVar[Kind]
+    """Set by each subclass: Pokémon, move, ability or type."""
+    id: int
+    """Its number within its kind: Pokédex number, move or ability number; a type's from `TYPE_IDS`."""
+    name: str
+    """Its dataset name, unique within its kind: "thunder-wave", "mr-mime"."""
+
+    @property
+    def ref(self) -> EntityRef:
+        """Its identity: kind and id (with its name, for display).
+
+        >>> repo.pokemon["pikachu"].ref
+        EntityRef(kind=<Kind.POKEMON: 'pokemon'>, id=25, name='pikachu')
+        """
+        return EntityRef(self.kind, self.id, self.name)
 
 
 class DamageClass(StrEnum):
@@ -46,7 +103,7 @@ class Stats:
 
 
 @dataclass(frozen=True)
-class Pokemon:
+class Pokemon(Entity):
     """One Pokémon, with the fields the app uses.
 
     >>> p = repo.pokemon["bulbasaur"]
@@ -54,9 +111,7 @@ class Pokemon:
     (1, ['grass', 'poison'], 0.7, 6.9)
     """
 
-    id: int
-    """Pokédex number."""
-    name: str
+    kind = Kind.POKEMON
     types: list[str]
     stats: Stats
     abilities: list[str]
@@ -87,7 +142,7 @@ class Pokemon:
 
 
 @dataclass(frozen=True)
-class Move:
+class Move(Entity):
     """One move. A field without a value in the data is None (a status move has no power).
 
     >>> m = repo.moves["surf"]
@@ -95,8 +150,7 @@ class Move:
     ('water', 90, 100, 15)
     """
 
-    id: int
-    name: str
+    kind = Kind.MOVE
     type: str
     damage_class: DamageClass
     power: int | None
@@ -121,15 +175,14 @@ class Move:
 
 
 @dataclass(frozen=True)
-class Ability:
+class Ability(Entity):
     """One ability.
 
     >>> repo.abilities["overgrow"].pokemon[:2]
     ['bulbasaur', 'ivysaur']
     """
 
-    id: int
-    name: str
+    kind = Kind.ABILITY
     short_effect: str
     pokemon: list[str]
     """Names of the Pokémon that have it."""
@@ -145,16 +198,18 @@ class Ability:
 
 
 @dataclass(frozen=True)
-class Type:
+class Type(Entity):
     """A type. The dataset has no type records, only the names used by Pokémon and moves.
 
     >>> repo.by_kind[Kind.TYPE]["fire"]
-    Type(name='fire', id=0)
+    Type(id=10, name='fire')
     """
 
-    name: str
-    id: int = 0
-    """No number in the data: 0, so search ties between types are broken by name."""
+    kind = Kind.TYPE
 
 
-Record = Pokemon | Move | Ability | Type
+TYPE_IDS = {
+    "normal": 1, "fighting": 2, "flying": 3, "poison": 4, "ground": 5, "rock": 6, "bug": 7, "ghost": 8, "steel": 9,
+    "fire": 10, "water": 11, "grass": 12, "electric": 13, "psychic": 14, "ice": 15, "dragon": 16, "dark": 17, "fairy": 18,
+}
+"""The types' numbers, which pokedex.json lacks: PokeAPI's (https://pokeapi.co/api/v2/type/{name}, field `id`)."""

@@ -3,9 +3,12 @@ from pathlib import Path
 import pytest
 import yaml
 
+from domain.repository import Repository
+from domain.sources import DATA_DIR, read_json
 from search import SearchEngine
 
 CASES_DIR = Path(__file__).parent / "cases"
+REPO = Repository(read_json(DATA_DIR / "pokedex.json"))  # turns the names in case files into refs (kind and id)
 
 
 def load_cases(filename: str) -> list:

@@ -30,12 +30,12 @@ npm.cmd run dev    # while editing: http://localhost:5173, live reload, /api for
 
 | Folder | Components |
 |---|---|
-| `search/` | `SearchView` (box, results by pages), `ResultList` (the rows) |
+| `search/` | `SearchView` (box, results by pages, the state in the URL), `ResultList` (the rows; relation lists folded under their heading, each paged on its own) |
 | `details/` | `DetailsPanel` (header, then one panel per kind): `PokemonPanel`, `MovePanel`, `AbilityPanel`, `TypePanel`; `CoverageTable` |
 | `explore/` | `ExploreView` (choices and URL), `ExploreMenus` (sidebar), `TypeFilter`, `BarChart` (SVG), `ExploreTable` |
 | `shared/` | `TypeBadge`, `EntityChips` (linked names, with a hover card for Pokémon and moves), `ToggleButtons` |
 
 - **No relaying**: any component calls `open(kind, name)` from `state.ts`; props only carry the data to show.
 - **Typed**: `api.ts` mirrors the backend's responses; `vue-tsc` checks every component, templates included.
-- **State in the URL** (`?q=bulbi`, `?page=2`, `?view=explore&x=attack`), so views can be shared; switching tabs
-  keeps each view's state (`KeepAlive`).
+- **State in the URL** (`?q=bulbi`, `?page=2`, `?lists=2,0` for the relation lists, `?view=explore&x=attack`), so
+  views can be shared; switching tabs keeps each view's state (`KeepAlive`).

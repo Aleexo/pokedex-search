@@ -15,8 +15,8 @@ def test_repository_works_with_any_data():
                    "pp": 25, "effect_chance": 10, "short_effect": "", "learned_by_pokemon": ["testmon"]}],
         "abilities": [],
     })
-    assert repo.pokemon_with(EntityRef(Kind.MOVE, "ember")) == ["testmon"]
-    assert repo.exists(EntityRef(Kind.TYPE, "fire"))
+    assert repo.linked(repo.ref(Kind.MOVE, "ember"), Kind.POKEMON) == (repo.ref(Kind.POKEMON, "testmon"),)
+    assert repo.get(repo.ref(Kind.TYPE, "fire")) == Type(10, "fire")  # PokeAPI's number
     assert (repo.pokemon["testmon"].height_m, repo.pokemon["testmon"].weight_kg) == (1.0, 10.0)  # m and kg
 
 
@@ -31,8 +31,8 @@ def test_every_move_has_a_known_damage_class(engine):
 
 
 def test_by_kind_holds_every_kind_types_included(engine):
-    """One dict per kind; a type has no record in the data, so its record only holds its name."""
+    """One dict per kind; a type has no record in the data, so its record only holds its name and PokeAPI's number."""
     repo = engine.repo
     assert [len(repo.by_kind[k]) for k in Kind] == [151, 164, 114, 18]
-    assert repo.by_kind[Kind.TYPE]["fire"] == Type("fire")
+    assert repo.by_kind[Kind.TYPE]["fire"] == Type(10, "fire")
     assert repo.by_kind[Kind.MOVE]["surf"] is repo.moves["surf"]

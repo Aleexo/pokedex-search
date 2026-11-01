@@ -30,6 +30,19 @@ def test_search_results_are_paged_like_all_pokemon(monkeypatch):
     assert (nothing["pages"], nothing["total"], nothing["hits"]) == (1, 0, []) and nothing["notes"]
 
 
+def test_relation_search_gives_headings_and_each_hits_list():
+    """A relation query: `groups` holds each list's heading (text and entities with their card) and count; each hit
+    has its list's index; all rows come on one page. A name search has no groups and no `group` on its hits."""
+    body = client.get("/api/search", params={"q": "fire pokemon ability blaze"}).json()
+    heading = body["groups"][0]["heading"]
+    assert heading[0] == "Pokémon of type " and heading[1]["name"] == "fire" and heading[3]["short_effect"]
+    assert body["groups"][0]["total"] == 3 and {h["group"] for h in body["hits"]} == {0}
+    big = client.get("/api/search", params={"q": "psychic pokemon"}).json()  # 34 + 14 rows, folded: one page
+    assert (big["pages"], big["total"], len(big["hits"])) == (1, 48, 48)
+    names = client.get("/api/search", params={"q": "char"}).json()
+    assert names["groups"] == [] and all("group" not in h for h in names["hits"])
+
+
 def test_search_hits_carry_types_for_badges():
     """Pokémon and moves show type badges in the result list, so hits carry their types."""
     hits = {h["name"]: h for h in client.get("/api/search", params={"q": "thunder"}).json()["hits"]}

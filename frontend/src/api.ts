@@ -36,9 +36,19 @@ export interface PokemonSummary {
 /** One result row: a search hit, or a Pokémon in the list of all Pokémon. */
 export interface Hit extends EntityRef {
   types: string[];
-  reasons: string[]; // why it matched; empty when listing all Pokémon
-  score?: number;
+  reasons: string[]; // why it matched; empty when listing all Pokémon or in a relation list
+  score?: number | null;
   pokemon?: PokemonSummary;
+  group?: number; // in a relation search: the index of its list in `SearchResult.groups`
+}
+
+/** A part of a relation list's heading: text, or an entity with what its hover card shows. */
+export type HeadingPart = string | (EntityRef & Partial<PokemonRef & MoveRef> & { short_effect?: string });
+
+/** A relation list (`poison moves`): its heading and how many entities it holds over all pages. */
+export interface Group {
+  heading: HeadingPart[]; // ["Moves of type ", {kind: "type", name: "poison", label: "Poison"}]
+  total: number;
 }
 
 /** `/api/search` and `/api/pokemon`: one page of result rows. `query` is "" for the list of all Pokémon. */
@@ -46,6 +56,7 @@ export interface SearchResult {
   query: string;
   hits: Hit[]; // this page's rows
   notes: string[];
+  groups?: Group[]; // a relation search's lists; empty or absent otherwise
   page: number;
   pages: number;
   total: number; // rows over all pages

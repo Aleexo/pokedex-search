@@ -137,7 +137,7 @@ class Row:
     """One bar or table row: an entity, its value, and how many Pokémon (or moves) it averages or can learn it.
 
     >>> explorer.ranked(Number.SPEED)[0]
-    Row(ref=EntityRef(kind=<Kind.POKEMON: 'pokemon'>, name='electrode'), x=150, count=1)
+    Row(ref=EntityRef(kind=<Kind.POKEMON: 'pokemon'>, id=101, name='electrode'), x=150, count=1)
     """
 
     ref: EntityRef
@@ -190,7 +190,7 @@ class Explorer:
         >>> [(r.ref.name, r.x) for r in explorer.ranked(Number.SPEED)][1:4]
         [('aerodactyl', 130), ('jolteon', 130), ('mewtwo', 130)]
         """
-        return sorted(self.rows(x, by_type, types), key=lambda r: (-r.x if order is Order.TOP else r.x, r.ref))
+        return sorted(self.rows(x, by_type, types), key=lambda r: (-r.x if order is Order.TOP else r.x, r.ref.name))  # ties by name
 
     def rows(self, x: Number, by_type: bool = False, types: frozenset[str] = frozenset()) -> list[Row]:
         """Every row, unranked: one per Pokémon or move with a value for `x`, or one per type averaging them.
@@ -198,28 +198,28 @@ class Explorer:
         Raises ValueError if a type filter is combined with grouping by type: one or the other.
 
         >>> next(r for r in explorer.rows(Number.SPEED, by_type=True) if r.ref.name == "dragon")
-        Row(ref=EntityRef(kind=<Kind.TYPE: 'type'>, name='dragon'), x=66.7, count=3)
+        Row(ref=EntityRef(kind=<Kind.TYPE: 'type'>, id=16, name='dragon'), x=66.7, count=3)
         >>> next(r for r in explorer.rows(Number.POWER) if r.ref.name == "surf")  # count: Pokémon learning it
-        Row(ref=EntityRef(kind=<Kind.MOVE: 'move'>, name='surf'), x=90, count=42)
+        Row(ref=EntityRef(kind=<Kind.MOVE: 'move'>, id=57, name='surf'), x=90, count=42)
         """
         if by_type and types:
             raise ValueError("Filter by type or group by type, not both")
-        # (name, its types, value, count) for each Pokémon or move with a value
-        items: list[tuple[str, list[str], float, int]]
+        # (ref, its types, value, count) for each Pokémon or move with a value
+        items: list[tuple[EntityRef, list[str], float, int]]
         if x.subject is Subject.MOVE:
             move_value = _MOVE_VALUES[x]
-            items = [(m.name, [m.type], v, len(m.learned_by_pokemon))
+            items = [(m.ref, [m.type], v, len(m.learned_by_pokemon))
                      for m in self.moves(types) if (v := move_value(m)) is not None]  # a status move has no power
         else:
             pokemon_value = _POKEMON_VALUES[x]
-            items = [(p.name, p.types, pokemon_value(p), 1) for p in self.pokemon(types)]
+            items = [(p.ref, p.types, pokemon_value(p), 1) for p in self.pokemon(types)]
         if not by_type:
-            return [Row(EntityRef(x.subject.kind, name), v, count) for name, _, v, count in items]
+            return [Row(ref, v, count) for ref, _, v, count in items]
         groups: dict[str, list[float]] = defaultdict(list)
         for _, own, v, _ in items:
             for t in own:
                 groups[t].append(v)
-        return [Row(EntityRef(Kind.TYPE, t), _mean(values), len(values)) for t, values in groups.items()]
+        return [Row(self.repo.ref(Kind.TYPE, t), _mean(values), len(values)) for t, values in groups.items()]
 
 
 def tied_beyond(ranked: list[Row], limit: int = MAX_ROWS) -> int:

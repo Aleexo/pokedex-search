@@ -13,10 +13,12 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.staticfiles import StaticFiles
 
 from coverage import CoverageAdvisor, CoverageMove, TypeChart
+from domain.records import Move, Pokemon, Type
 from domain.repository import EntityRef, Kind, Repository
 from explore import Explorer, Number, Order, Subject, tied_beyond
 from explore.explorer import MAX_ROWS
 from search import SearchEngine
+from search.relations.headings import heading
 from search.search import display_name
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -49,7 +51,7 @@ def pokemon_summary(name: str) -> dict:
 def row_json(ref: EntityRef) -> dict:
     """One row of the result list: label, types for the badges and, for a Pokémon, its summary.
 
-    >>> row = row_json(EntityRef(Kind.POKEMON, "pikachu"))
+    >>> row = row_json(repo.ref(Kind.POKEMON, "pikachu"))
     >>> row["label"], row["types"], row["pokemon"]["id"]
     ('Pikachu', ['electric'], 25)
     """
@@ -62,7 +64,7 @@ def row_json(ref: EntityRef) -> dict:
 def ref_json(ref: EntityRef) -> dict:
     """JSON form of an entity reference, with a display label.
 
-    >>> ref_json(EntityRef(Kind.MOVE, "thunder-wave"))["label"]
+    >>> ref_json(repo.ref(Kind.MOVE, "thunder-wave"))["label"]
     'Thunder Wave'
     """
     return {"kind": ref.kind, "name": ref.name, "label": display_name(ref.name)}
@@ -70,24 +72,34 @@ def ref_json(ref: EntityRef) -> dict:
 
 @app.get("/api/search")
 def search(q: str = Query(..., min_length=1, max_length=200), page: int = Query(1, ge=1)) -> dict:
-    """Search by name: one page of ranked hits with reasons, and notes. Logs one line per query.
+    """Search: one page of ranked hits with reasons, and notes. Logs one line per query. A relation query
+    (`poison moves`) also gives its lists' headings and counts in `groups`, and each hit its list's index in `group`;
+    a heading is text and entities, the entities with what their hover card shows. Its rows all come on one page.
 
     404 past the last page.
 
     Example: GET /api/search?q=char
-    -> {"query": "char", "notes": [], "page": 1, "pages": 1, "total": 4,
+    -> {"query": "char", "notes": [], "groups": [], "page": 1, "pages": 1, "total": 4,
         "hits": [{"kind": "pokemon", "name": "charmander", "score": 0.9, ...}, ...]}
+    Example: GET /api/search?q=poison+moves
+    -> {"groups": [{"heading": ["Moves of type ", {"kind": "type", "name": "poison", "label": "Poison"}], "total": 8}],
+        "hits": [{"kind": "move", "name": "poison-sting", "group": 0, "score": null, "reasons": [], ...}, ...], ...}
     """
     started = time.perf_counter()
     response = engine.search(q)
-    hits = [{**row_json(hit.ref), "score": hit.score, "reasons": hit.reasons} for hit in response.hits]
+    hits = [{**row_json(hit.ref), "score": hit.score, "reasons": hit.reasons}
+            | ({"group": hit.group} if hit.group is not None else {}) for hit in response.hits]
+    groups = [{"heading": [p if isinstance(p, str) else card_json(p) for p in heading(found)], "total": len(found.refs)}
+              for found in response.lists]
 
     # One structured line per query: what matched and how long it took.
     log.info(
         "query=%r hits=%d top=%s ms=%.1f",
         q, len(hits), [f"{h['kind']}:{h['name']}" for h in hits[:3]], (time.perf_counter() - started) * 1000,
     )
-    return {"query": response.query, "notes": response.notes, **one_page(hits, page)}
+    # A relation search's lists are folded in the page, so all their rows come at once: one page.
+    return {"query": response.query, "notes": response.notes, "groups": groups,
+            **one_page(hits, page, len(hits) if groups else None)}
 
 
 @app.get("/api/pokemon")
@@ -103,25 +115,26 @@ def pokemon_page(page: int = Query(1, ge=1)) -> dict:
     >>> [h["name"] for h in pokemon_page(8)["hits"]][-2:]
     ['mewtwo', 'mew']
     """
-    rows = [{**row_json(EntityRef(Kind.POKEMON, n)), "reasons": []} for n in repo.pokemon]  # dataset = Pokédex order
+    rows = [{**row_json(p.ref), "reasons": []} for p in repo.pokemon.values()]  # dataset = Pokédex order
     return {"query": "", "notes": [], **one_page(rows, page)}
 
 
 PAGE_SIZE = 20
 
 
-def one_page(rows: list[dict], page: int) -> dict:
-    """Page `page` of the rows, PAGE_SIZE per page, with the page count and total. No rows is one empty page;
-    past the last page: 404.
+def one_page(rows: list[dict], page: int, size: int | None = None) -> dict:
+    """Page `page` of the rows, `size` per page (PAGE_SIZE if None), with the page count and total. No rows is one
+    empty page; past the last page: 404.
 
     >>> p = one_page(list(range(45)), 3)
     >>> p["hits"], p["pages"], p["total"]
     ([40, 41, 42, 43, 44], 3, 45)
     """
-    pages = max(1, -(-len(rows) // PAGE_SIZE))  # ceiling division
+    size = size or PAGE_SIZE
+    pages = max(1, -(-len(rows) // size))  # ceiling division
     if page > pages:
         raise HTTPException(404, f"No page {page}: there are {pages}")
-    return {"page": page, "pages": pages, "total": len(rows), "hits": rows[(page - 1) * PAGE_SIZE:page * PAGE_SIZE]}
+    return {"page": page, "pages": pages, "total": len(rows), "hits": rows[(page - 1) * size:page * size]}
 
 
 @app.get("/api/entity/{kind}/{name}")
@@ -133,9 +146,9 @@ def entity(kind: Kind, name: str) -> dict:
         "evolution_family": [{"name": "bulbasaur", ...}, {"name": "ivysaur", ...}, ...], ...}
     """
     # FastAPI validates `kind` against the enum (422 if invalid); unknown names are a 404.
-    ref = EntityRef(kind, name)
-    if not repo.exists(ref):
+    if name not in repo.by_kind[kind]:
         raise HTTPException(404, f"Unknown {kind} {name!r}")
+    ref = repo.ref(kind, name)
     base = ref_json(ref)
 
     if kind is Kind.POKEMON:
@@ -144,10 +157,9 @@ def entity(kind: Kind, name: str) -> dict:
             **base, **pokemon_summary(name),
             "genus": p.genus,
             "description": p.description,
-            "abilities": [{**ref_json(EntityRef(Kind.ABILITY, a)), "short_effect": repo.abilities[a].short_effect}
-                          for a in p.abilities],
+            "abilities": [card_json(repo.ref(Kind.ABILITY, a)) for a in p.abilities],
             "moves": [move_ref_json(m) for m in p.moves],
-            "evolution_family": [pokemon_ref_json(n) for n in repo.evolution_family(name)],
+            "evolution_family": [pokemon_ref_json(r.name) for r in repo.evolution_family(ref)],
         }
     if kind is Kind.MOVE:
         m = repo.moves[name]
@@ -156,16 +168,32 @@ def entity(kind: Kind, name: str) -> dict:
     if kind is Kind.ABILITY:
         return {**base, "short_effect": repo.abilities[name].short_effect, "pokemon": _pokemon_refs(ref)}
     return {**base, "pokemon": _pokemon_refs(ref),
-            "moves": [move_ref_json(m) for m in repo.moves_by_type.get(name, [])]}
+            "moves": [move_ref_json(r.name) for r in repo.linked(ref, Kind.MOVE)]}
 
 
 def _pokemon_refs(ref: EntityRef) -> list[dict]:
     """Pokémon linked to an entity, in dataset order, each with its types and sprite.
 
-    >>> [p["name"] for p in _pokemon_refs(EntityRef(Kind.MOVE, "spore"))]
+    >>> [p["name"] for p in _pokemon_refs(repo.ref(Kind.MOVE, "spore"))]
     ['paras', 'parasect']
     """
-    return [pokemon_ref_json(n) for n in repo.pokemon_with(ref)]
+    return [pokemon_ref_json(p.name) for p in repo.linked(ref, Kind.POKEMON)]
+
+
+def card_json(ref: EntityRef) -> dict:
+    """An entity with what its hover card shows: a Pokémon's types and sprite, a move's type, class and power, an
+    ability's effect; a type, only its name.
+
+    >>> "short_effect" in card_json(repo.ref(Kind.ABILITY, "blaze")), card_json(repo.ref(Kind.TYPE, "fire"))
+    (True, {'kind': <Kind.TYPE: 'type'>, 'name': 'fire', 'label': 'Fire'})
+    """
+    if ref.kind is Kind.POKEMON:
+        return pokemon_ref_json(ref.name)
+    if ref.kind is Kind.MOVE:
+        return move_ref_json(ref.name)
+    if ref.kind is Kind.ABILITY:
+        return {**ref_json(ref), "short_effect": repo.abilities[ref.name].short_effect}
+    return ref_json(ref)
 
 
 def pokemon_ref_json(name: str) -> dict:
@@ -176,7 +204,7 @@ def pokemon_ref_json(name: str) -> dict:
     ('Ivysaur', ['grass', 'poison'], True)
     """
     p = repo.pokemon[name]
-    return {**ref_json(EntityRef(Kind.POKEMON, name)), "types": p.types, "sprite": p.sprite}
+    return {**ref_json(p.ref), "types": p.types, "sprite": p.sprite}
 
 
 def move_ref_json(name: str) -> dict:
@@ -187,7 +215,7 @@ def move_ref_json(name: str) -> dict:
     ('Surf', 'water', 'special', 90, 'status', None)
     """
     m = repo.moves[name]
-    return {**ref_json(EntityRef(Kind.MOVE, name)), "type": m.type, "damage_class": m.damage_class, "power": m.power}
+    return {**ref_json(m.ref), "type": m.type, "damage_class": m.damage_class, "power": m.power}
 
 
 @app.get("/api/explore/fields")
@@ -201,8 +229,8 @@ def explore_fields() -> dict:
     return {
         "numbers": [{"name": n.value, "label": n.label, "subject": n.subject} for n in Number],
         "max_rows": MAX_ROWS,
-        # Only types some Pokémon has (no Gen 1 Pokémon is Dark), in dataset order.
-        "filters": {"types": [ref_json(EntityRef(Kind.TYPE, t)) for t in repo.pokemon_by_type]},
+        # Only types some Pokémon has (no Gen 1 Pokémon is Dark), by number.
+        "filters": {"types": [ref_json(t.ref) for t in repo.by_kind[Kind.TYPE].values() if repo.linked(t.ref, Kind.POKEMON)]},
     }
 
 
@@ -222,7 +250,7 @@ def explore(x: Number, by_type: bool = False, order: Order = Order.TOP, types: l
                   "types": ["water", "psychic"]}, ...]}
     """
     for name in types:
-        if not repo.exists(EntityRef(Kind.TYPE, name)):
+        if name not in repo.by_kind[Kind.TYPE]:
             raise HTTPException(422, f"Unknown type: {name}")
     chosen = frozenset(types)  # the type filter
     try:
@@ -243,15 +271,16 @@ def explore(x: Number, by_type: bool = False, order: Order = Order.TOP, types: l
 def _entity_types(ref: EntityRef) -> list[str]:
     """Types of an entity, for badges and Explore colours: a Pokémon's types, the type itself, a move's type; none for an ability.
 
-    >>> _entity_types(EntityRef(Kind.POKEMON, "charizard")), _entity_types(EntityRef(Kind.MOVE, "surf"))
+    >>> _entity_types(repo.ref(Kind.POKEMON, "charizard")), _entity_types(repo.ref(Kind.MOVE, "surf"))
     (['fire', 'flying'], ['water'])
     """
-    if ref.kind is Kind.POKEMON:
-        return repo.pokemon[ref.name].types
-    if ref.kind is Kind.TYPE:
-        return [ref.name]
-    if ref.kind is Kind.MOVE:
-        return [repo.moves[ref.name].type]
+    record = repo.get(ref)
+    if isinstance(record, Pokemon):
+        return record.types
+    if isinstance(record, Move):
+        return [record.type]
+    if isinstance(record, Type):
+        return [record.name]
     return []
 
 

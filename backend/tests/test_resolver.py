@@ -1,13 +1,13 @@
 import pytest
 
 from domain.repository import EntityRef, Kind
-from tests.conftest import load_cases
+from tests.conftest import REPO, load_cases
 
 
 def _ref(text: str) -> EntityRef:
-    """'kind:name' from a case file -> EntityRef."""
+    """'kind:name' from a case file -> EntityRef (cases name entities; the repository gives their id)."""
     kind, name = text.split(":", 1)
-    return EntityRef(Kind(kind), name)
+    return REPO.ref(Kind(kind), name)
 
 
 @pytest.mark.parametrize("case", load_cases("resolver.yaml"))

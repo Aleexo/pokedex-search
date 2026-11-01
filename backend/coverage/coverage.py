@@ -134,7 +134,7 @@ class CoverageAdvisor:
         assert move.power is not None, move.name  # only damaging moves are built
         stat = _stat(pokemon, move)
         multipliers = {w: self.chart.multiplier(move.type, w) for w in walls}
-        return CoverageMove(EntityRef(Kind.MOVE, move.name), move.type, move.power, move.accuracy, move.pp,
+        return CoverageMove(move.ref, move.type, move.power, move.accuracy, move.pp,
                             move.damage_class, stat, move.power * (move.accuracy or 100) / 100 * stat, multipliers,
                             sum(1 for x in multipliers.values() if x >= SUPER_EFFECTIVE),
                             sum(1 for x in multipliers.values() if x == NEUTRAL))

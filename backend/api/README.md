@@ -5,7 +5,7 @@ Thin FastAPI layer: it shapes JSON and serves the frontend. Run from `backend/`:
 
 | Route | Returns | Errors |
 |---|---|---|
-| `GET /api/search?q=…&page=1` | one page of ranked hits (20 per page), each with its reason, types and, for a Pokémon, a summary | 422, 404 past the end |
+| `GET /api/search?q=…&page=1` | one page of ranked hits (20 per page), each with its reason, types and, for a Pokémon, a summary; a relation query (`poison moves`) also gives `groups` (each list's heading and count), `group` on each hit, and all its rows on one page | 422, 404 past the end |
 | `GET /api/pokemon?page=1` | all Pokémon in Pokédex order, same paged shape as a search (`query` is empty) | 404 past the end |
 | `GET /api/entity/{kind}/{name}` | details for the panel; each Pokémon or move named comes with what its hover card shows | 422 kind, 404 name |
 | `GET /api/explore?x=…[&by_type=true]&order=top[&types=…]` | up to 8 rows, counts, ties beyond the 8th | 422 |

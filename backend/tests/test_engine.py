@@ -4,14 +4,14 @@ from domain.repository import EntityRef, Kind
 def test_exact_name_is_the_top_hit(engine):
     """An exact name scores 1.0 and ranks first."""
     response = engine.search("pikachu")
-    assert response.hits[0].ref == EntityRef(Kind.POKEMON, "pikachu")
+    assert response.hits[0].ref == engine.repo.ref(Kind.POKEMON, "pikachu")
     assert response.hits[0].score == 1.0
 
 
 def test_typo_is_found_and_explained(engine):
     """A misspelt name is found despite the typo, and the reason says so."""
     hit = engine.search("pikchu").hits[0]
-    assert hit.ref == EntityRef(Kind.POKEMON, "pikachu")
+    assert hit.ref == engine.repo.ref(Kind.POKEMON, "pikachu")
     assert "typo" in hit.reasons[0]
 
 
@@ -25,7 +25,7 @@ def test_shared_name_gives_equal_hits(engine):
 def test_exact_ranks_above_prefix(engine):
     """An exact match wins over names that only start with the query."""
     hits = engine.search("thunder").hits
-    assert hits[0].ref == EntityRef(Kind.MOVE, "thunder")
+    assert hits[0].ref == engine.repo.ref(Kind.MOVE, "thunder")
     assert all(h.score <= hits[0].score for h in hits)
 
 
@@ -61,3 +61,16 @@ def test_each_word_gets_its_closest_matches(engine):
     beams = _names("beam and pikachu", engine)
     assert beams[-1] == "pikachu" and set(beams[:-1]) == {h.ref.name for h in engine.search("beam").hits}
     assert _names("raichu to pikachu", engine) == ["raichu", "pikachu"]  # "to" alone would find Toxic…
+
+
+def test_names_of_one_word_side_by_side_are_not_one_misspelt_name(engine):
+    """`fire blaze` among other names is Fire and Blaze (each a name), not Fire Blast with 2 typos; a misspelt name
+    whose words aren't all names stays whole (`thunder wabe` -> Thunder Wave)."""
+    assert {"fire", "blaze"} <= set(_names("pikachu fire blaze", engine))
+    assert _names("thunder wabe pikachu", engine) == ["thunder-wave", "pikachu"]
+
+
+def test_a_kind_word_left_as_a_label_is_not_searched_as_a_name(engine):
+    """`char pokemon`: pokemon is Charizard's label, so the name search answers, without reading `pokemon` as a name
+    (it would add Porygon and the Poison moves)."""
+    assert _names("char pokemon", engine) == ["charmander", "charmeleon", "charizard", "cute-charm"]

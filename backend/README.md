@@ -1,6 +1,6 @@
 # backend
 
-Python 3.11+, FastAPI, managed with uv. One process serves the API and the built frontend.
+Python 3.11+, FastAPI, rapidfuzz (edit distance), managed with uv. One process serves the API and the built frontend.
 
 ```bash
 uv sync --extra dev                    # once
@@ -11,7 +11,7 @@ uv run uvicorn api.main:app --reload   # http://localhost:8000 (interactive API 
 | Folder | Role |
 |---|---|
 | [`domain/`](domain/README.md) | typed records (dataclasses) and the in-memory `Repository` |
-| [`search/`](search/README.md) | normalisation, edit distance, ranking of names |
+| [`search/`](search/README.md) | the name search (normalisation, edit distance, ranking) and the relation search (`poison moves`) |
 | [`explore/`](explore/README.md) | ranking Pokémon or moves on one field, alone or by type |
 | [`coverage/`](coverage/README.md) | type chart and coverage moves |
 | [`api/`](api/README.md) | FastAPI routes; also serves `frontend/dist` |

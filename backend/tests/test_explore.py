@@ -20,7 +20,7 @@ def test_bar_chart_top_and_bottom(engine):
 def test_groups_are_averaged(engine):
     """Grouped rows average their Pokémon: Dragon speed = (50 + 70 + 80) / 3."""
     rows = Explorer(engine.repo).ranked(Number.SPEED, by_type=True)
-    dragon = next(r for r in rows if r.ref == EntityRef(Kind.TYPE, "dragon"))
+    dragon = next(r for r in rows if r.ref.name == "dragon")
     assert (dragon.x, dragon.count) == (66.7, 3)
 
 

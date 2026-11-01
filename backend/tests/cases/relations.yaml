@@ -1,0 +1,166 @@
+# Labelled cases of the relation search (docs/RELATION_SEARCH.md). Each case: the lists expected, in order:
+#   title, count, and the items (all when 10 or fewer, else the first 3: `starts`).
+#   unchanged -> no kind word: the name search answers, as before.  none -> no results.
+# Written by scripts/relation_cases.py, which computes them from data/pokedex.json independently of the code
+# under test; lists are in number order (types: PokeAPI's numbers, Normal 1 … Fairy 18). Edit CASES there.
+
+one_filter:
+  - query: poison moves
+    expect:
+      - {title: "Moves of type Poison", count: 8, items: [move:poison-sting, move:acid, move:poison-powder, move:toxic, move:smog, move:sludge, move:poison-gas, move:acid-armor]}
+  - query: fire pokemon
+    expect:
+      - {title: "Pokémon of type Fire", count: 12, starts: [pokemon:charmander, pokemon:charmeleon, pokemon:charizard]}
+  - query: pikachu moves
+    expect:
+      - {title: "Moves learned by Pikachu", count: 30, starts: [move:mega-punch, move:pay-day, move:slam]}
+  - query: thunderbolt pokemon
+    expect:
+      - {title: "Pokémon that learn Thunderbolt", count: 50, starts: [pokemon:rattata, pokemon:raticate, pokemon:pikachu]}
+  - query: static pokemon
+    expect:
+      - {title: "Pokémon with Static", count: 6, items: [pokemon:pikachu, pokemon:raichu, pokemon:voltorb, pokemon:electrode, pokemon:electabuzz, pokemon:zapdos]}
+  - query: charizard abilities
+    expect:
+      - {title: "Abilities of Charizard", count: 2, items: [ability:blaze, ability:solar-power]}
+  - query: moves pikachu  # the last kind word takes the items after it
+    expect:
+      - {title: "Moves learned by Pikachu", count: 30, starts: [move:mega-punch, move:pay-day, move:slam]}
+
+typos_and_ties:
+  - query: posion moves  # typo: the type is closest to the full word
+    expect:
+      - {title: "Moves of type Poison", count: 8, items: [move:poison-sting, move:acid, move:poison-powder, move:toxic, move:smog, move:sludge, move:poison-gas, move:acid-armor]}
+  - query: rock pokemon  # exact name wins over Rock Head, Rock Slide…
+    expect:
+      - {title: "Pokémon of type Rock", count: 11, starts: [pokemon:geodude, pokemon:graveler, pokemon:golem]}
+  - query: psychic pokemon  # type and move both exact: one list each
+    expect:
+      - {title: "Pokémon that learn Psychic", count: 34, starts: [pokemon:butterfree, pokemon:clefairy, pokemon:clefable]}
+      - {title: "Pokémon of type Psychic", count: 14, starts: [pokemon:abra, pokemon:kadabra, pokemon:alakazam]}
+  - query: nidoran moves  # a tie on the full word: one list each
+    expect:
+      - {title: "Moves learned by Nidoran F", count: 23, starts: [move:scratch, move:double-kick, move:tackle]}
+      - {title: "Moves learned by Nidoran M", count: 23, starts: [move:double-kick, move:horn-attack, move:fury-attack]}
+  - {query: char pokemon, expect: unchanged}  # char is Charizard (closest to the full name), so pokemon is its label
+
+several_kinds_all_hold:
+  - query: fire pokemon ability blaze and fire blast
+    expect:
+      - {title: "Pokémon of type Fire with Blaze and that learn Fire Blast", count: 3, items: [pokemon:charmander, pokemon:charmeleon, pokemon:charizard]}
+  - query: pokemon fire blaze fire blast  # fire blaze is Fire and Blaze, not a misspelt Fire Blast
+    expect:
+      - {title: "Pokémon of type Fire with Blaze and that learn Fire Blast", count: 3, items: [pokemon:charmander, pokemon:charmeleon, pokemon:charizard]}
+  - query: pikachu electric moves
+    expect:
+      - {title: "Moves of type Electric learned by Pikachu", count: 4, items: [move:thunder-shock, move:thunderbolt, move:thunder-wave, move:thunder]}
+  - query: charizard fire moves
+    expect:
+      - {title: "Moves of type Fire learned by Charizard", count: 4, items: [move:ember, move:flamethrower, move:fire-spin, move:fire-blast]}
+  - query: electric pokemon static
+    expect:
+      - {title: "Pokémon of type Electric with Static", count: 6, items: [pokemon:pikachu, pokemon:raichu, pokemon:voltorb, pokemon:electrode, pokemon:electabuzz, pokemon:zapdos]}
+  - query: water pokemon ice beam
+    expect:
+      - {title: "Pokémon of type Water that learn Ice Beam", count: 31, starts: [pokemon:squirtle, pokemon:wartortle, pokemon:blastoise]}
+  - query: snorlax moves psychic  # the type, as the move can't filter moves
+    expect:
+      - {title: "Moves of type Psychic learned by Snorlax", count: 5, items: [move:psychic, move:reflect, move:amnesia, move:psywave, move:rest]}
+
+same_kind_one_list_each:
+  - query: blaze overgrow pokemon
+    expect:
+      - {title: "Pokémon with Blaze", count: 3, items: [pokemon:charmander, pokemon:charmeleon, pokemon:charizard]}
+      - {title: "Pokémon with Overgrow", count: 3, items: [pokemon:bulbasaur, pokemon:ivysaur, pokemon:venusaur]}
+  - query: fire water pokemon  # no Fire and Water Pokémon: or, never and
+    expect:
+      - {title: "Pokémon of type Fire", count: 12, starts: [pokemon:charmander, pokemon:charmeleon, pokemon:charizard]}
+      - {title: "Pokémon of type Water", count: 32, starts: [pokemon:squirtle, pokemon:wartortle, pokemon:blastoise]}
+  - query: pikachu raichu moves
+    expect:
+      - {title: "Moves learned by Pikachu", count: 30, starts: [move:mega-punch, move:pay-day, move:slam]}
+      - {title: "Moves learned by Raichu", count: 25, starts: [move:mega-punch, move:pay-day, move:mega-kick]}
+
+labels:
+  - query: fire type pokemon  # type is a label
+    expect:
+      - {title: "Pokémon of type Fire", count: 12, starts: [pokemon:charmander, pokemon:charmeleon, pokemon:charizard]}
+  - query: thunderbolt move pokemon  # move is a label
+    expect:
+      - {title: "Pokémon that learn Thunderbolt", count: 50, starts: [pokemon:rattata, pokemon:raticate, pokemon:pikachu]}
+  - query: mirror move pokemon  # the full name first
+    expect:
+      - {title: "Pokémon that learn Mirror Move", count: 5, items: [pokemon:pidgey, pokemon:pidgeotto, pokemon:pidgeot, pokemon:spearow, pokemon:fearow]}
+
+chains:
+  - query: overgrow pokemon types
+    expect:
+      - {title: "Types of Pokémon with Overgrow", count: 2, items: [type:poison, type:grass]}
+  - query: dragon pokemon types
+    expect:
+      - {title: "Types of Pokémon of type Dragon", count: 2, items: [type:flying, type:dragon]}
+  - query: pikachu moves types
+    expect:
+      - {title: "Types of moves learned by Pikachu", count: 6, items: [type:normal, type:fighting, type:poison, type:water, type:electric, type:psychic]}
+  - query: electric pokemon abilities
+    expect:
+      - {title: "Abilities of Pokémon of type Electric", count: 11, starts: [ability:sturdy, ability:static, ability:volt-absorb]}
+  - query: blaze pokemon moves
+    expect:
+      - {title: "Moves learned by Pokémon with Blaze", count: 35, starts: [move:mega-punch, move:scratch, move:swords-dance]}
+  - query: fire moves pokemon
+    expect:
+      - {title: "Pokémon that learn moves of type Fire", count: 47, starts: [pokemon:charmander, pokemon:charmeleon, pokemon:charizard]}
+  - query: blaze pokemon fire moves  # Fire goes to the next kind word
+    expect:
+      - {title: "Moves of type Fire learned by Pokémon with Blaze", count: 4, items: [move:ember, move:flamethrower, move:fire-spin, move:fire-blast]}
+  - query: pikachu moves electric pokemon  # Electric goes to the next kind word
+    expect:
+      - {title: "Pokémon of type Electric that learn moves learned by Pikachu", count: 9, items: [pokemon:pikachu, pokemon:raichu, pokemon:magnemite, pokemon:magneton, pokemon:voltorb, pokemon:electrode, pokemon:electabuzz, pokemon:jolteon, pokemon:zapdos]}
+  - query: psychic pokemon fire moves  # two readings of psychic
+    expect:
+      - {title: "Moves of type Fire learned by Pokémon that learn Psychic", count: 4, items: [move:fire-punch, move:ember, move:flamethrower, move:fire-blast]}
+      - {title: "Moves of type Fire learned by Pokémon of type Psychic", count: 1, items: [move:fire-blast]}
+  - query: pikachu moves pokemon  # large but correct
+    expect:
+      - {title: "Pokémon that learn moves learned by Pikachu", count: 145, starts: [pokemon:bulbasaur, pokemon:ivysaur, pokemon:venusaur]}
+  - query: electric pokemon static moves  # Static can only filter the Pokémon, so it goes back to them
+    expect:
+      - {title: "Moves learned by Pokémon of type Electric with Static", count: 49, starts: [move:mega-punch, move:pay-day, move:thunder-punch]}
+  - query: pikachu moves thunder pokemon  # moves is no label: Pikachu, before it, can be filtered by it
+    expect:
+      - {title: "Pokémon that learn Thunder and that learn moves learned by Pikachu", count: 50, starts: [pokemon:rattata, pokemon:raticate, pokemon:pikachu]}
+
+kind_words_matched_like_names:
+  - query: fire poke  # the start of pokemon
+    expect:
+      - {title: "Pokémon of type Fire", count: 12, starts: [pokemon:charmander, pokemon:charmeleon, pokemon:charizard]}
+  - query: pikachu abilities  # a plural: up to 3 typos from 7 letters
+    expect:
+      - {title: "Abilities of Pikachu", count: 2, items: [ability:static, ability:lightning-rod]}
+  - query: agility pokemon  # Agility is a move: an exact name wins over a kind word (2 typos from ability)
+    expect:
+      - {title: "Pokémon that learn Agility", count: 28, starts: [pokemon:beedrill, pokemon:pidgey, pokemon:pidgeotto]}
+  - query: charizard abilites  # a missing letter
+    expect:
+      - {title: "Abilities of Charizard", count: 2, items: [ability:blaze, ability:solar-power]}
+  - query: pikachu more  # more is one typo from move (limitation)
+    expect:
+      - {title: "Moves learned by Pikachu", count: 30, starts: [move:mega-punch, move:pay-day, move:slam]}
+
+kind_word_alone:
+  - query: pokemon
+    expect:
+      - {title: "All Pokémon", count: 151, starts: [pokemon:bulbasaur, pokemon:ivysaur, pokemon:venusaur]}
+  - query: moves
+    expect:
+      - {title: "All moves", count: 164, starts: [move:pound, move:karate-chop, move:double-slap]}
+
+nothing:
+  - {query: grass move fire, expect: none}  # Fire comes after a group that already has a type
+  - {query: fire pokemon with blaze, expect: none}  # with -> Withdraw: no Fire Pokémon with Blaze learns it (limitation)
+
+no_kind_word_unchanged:
+  - {query: pikachu pokemon, expect: unchanged}  # pokemon is a label: no kind word left
+  - {query: pikachu thunderbolt, expect: unchanged}
+  - {query: fire blaze fire blast, expect: unchanged}

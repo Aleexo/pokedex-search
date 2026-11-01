@@ -1,6 +1,6 @@
 """Runs mypy as part of the test suite, so type errors fail `uv run pytest`.
 
-Main reason: `EntityRef(kind, name)` must receive a `Kind`, never a plain string.
+Main reason: `EntityRef(kind, id, name)` must receive a `Kind`, never a plain string.
 """
 
 from pathlib import Path
